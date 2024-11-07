@@ -25,6 +25,7 @@ const VideoScreener = () => {
           setIsPlaying(true);
         }
       } catch (error) {
+        alert("Error accessing webcam and microphone");
         console.error("Error accessing webcam and microphone: ", error);
       }
     } else {
@@ -78,11 +79,7 @@ const VideoScreener = () => {
   return (
     <div>
       <h1>Video Screener</h1>
-      <video
-        ref={videoRef}
-        disablePictureInPicture
-        className="videoElement"
-      />
+      <video ref={videoRef} disablePictureInPicture className="videoElement" />
       <div>
         <button onClick={handleStartStop}>
           {isPlaying ? "Stop Video" : "Start Video"}
@@ -96,11 +93,7 @@ const VideoScreener = () => {
       {recordedVideoURL && (
         <div>
           <h2>Recorded Video {recordedVideoURL}</h2>
-          <video
-            src={recordedVideoURL}
-            controls
-            className="videoElement"
-          />
+          <video src={recordedVideoURL} controls className="videoElement" />
         </div>
       )}
     </div>
