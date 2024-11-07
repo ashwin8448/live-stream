@@ -1,10 +1,11 @@
 import { useRef, useState, useEffect } from "react";
+import "./styles.css";
 
 const VideoScreener = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
+  const recordedChunks = useRef<Blob[]>([]);
   const [recordedVideoURL, setRecordedVideoURL] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
@@ -29,31 +30,30 @@ const VideoScreener = () => {
     } else {
       const stream = videoRef.current?.srcObject as MediaStream;
       const tracks = stream.getTracks();
-
       tracks.forEach((track) => track.stop());
-
       if (videoRef.current) {
         videoRef.current.srcObject = null;
       }
-
       setIsPlaying(false);
+      setIsRecording(false);
+      setRecordedVideoURL(null);
     }
   };
 
   const handleRecordStartStop = () => {
     if (!isRecording) {
       setRecordedVideoURL(null);
-      setRecordedChunks([]);
+      recordedChunks.current = [];
       const stream = videoRef.current?.srcObject as MediaStream;
       mediaRecorderRef.current = new MediaRecorder(stream);
       mediaRecorderRef.current.start();
       mediaRecorderRef.current.ondataavailable = (event) => {
         if (event.data.size > 0) {
-          setRecordedChunks((prev) => [...prev, event.data]);
+          recordedChunks.current.push(event.data);
         }
       };
       mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(recordedChunks, { type: "video/webm" });
+        const blob = new Blob(recordedChunks.current, { type: "video/webm" });
         setRecordedVideoURL(URL.createObjectURL(blob));
       };
       setIsRecording(true);
@@ -73,11 +73,16 @@ const VideoScreener = () => {
       }
     };
   }, []);
-  console.log(recordedChunks);
+  // console.log("recorderChunks", recordedChunks);
+  // console.log(isRecording, "isrecording", "isPlaying", isPlaying);
   return (
     <div>
       <h1>Video Screener</h1>
-      <video ref={videoRef} autoPlay={isPlaying} disablePictureInPicture />
+      <video
+        ref={videoRef}
+        disablePictureInPicture
+        className="videoElement"
+      />
       <div>
         <button onClick={handleStartStop}>
           {isPlaying ? "Stop Video" : "Start Video"}
@@ -91,7 +96,11 @@ const VideoScreener = () => {
       {recordedVideoURL && (
         <div>
           <h2>Recorded Video {recordedVideoURL}</h2>
-          <video src={recordedVideoURL} controls />
+          <video
+            src={recordedVideoURL}
+            controls
+            className="videoElement"
+          />
         </div>
       )}
     </div>
