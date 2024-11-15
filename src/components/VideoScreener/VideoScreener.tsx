@@ -1,10 +1,18 @@
 import { useRef, useState, useEffect } from "react";
+import {
+  connect,
+  createLocalTracks,
+  Room,
+  LocalTrack,
+  RemoteTrackPublication,
+  RemoteVideoTrack,
+} from "twilio-video";
 import "./styles.css";
 
 const VideoScreener = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [isRecording, setIsRecording] = useState<boolean>(false);
   const recordedChunks = useRef<Blob[]>([]);
   const [recordedVideoURL, setRecordedVideoURL] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -12,17 +20,59 @@ const VideoScreener = () => {
   const handleStartStop = async () => {
     if (!isPlaying) {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
+        const localTracks = await createLocalTracks({
           video: true,
           audio: true,
         });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.onloadedmetadata = () => {
-            videoRef.current!.play();
-          };
-          videoRef.current.muted = true;
+        const videoTrack = localTracks.find(
+          (track: LocalTrack) => track.kind === "video"
+        );
+        if (videoTrack && videoRef.current) {
+          videoTrack.attach(videoRef.current);
           setIsPlaying(true);
+
+          // Connect to a Twilio room (replace "your-twilio-token" with your actual Twilio token)
+          const room: Room = await connect("", {
+            name: "cool room",
+            tracks: localTracks,
+          });
+
+          // Handle participant connected
+          room.on("participantConnected", (participant) => {
+            participant.tracks.forEach(
+              (publication: RemoteTrackPublication) => {
+                if (publication.track && publication.track.kind === "video") {
+                  (publication.track as RemoteVideoTrack).attach(
+                    videoRef.current!
+                  );
+                }
+              }
+            );
+
+            participant.on("trackSubscribed", (track) => {
+              if (track.kind === "video") {
+                (track as RemoteVideoTrack).attach(videoRef.current!);
+              }
+            });
+          });
+
+          // Handle participant disconnected
+          room.on("participantDisconnected", (participant) => {
+            participant.tracks.forEach(
+              (publication: RemoteTrackPublication) => {
+                if (publication.track && publication.track.kind === "video") {
+                  (publication.track as RemoteVideoTrack)
+                    .detach()
+                    .forEach((element) => element.remove());
+                }
+              }
+            );
+          });
+
+          // Disconnect from the room on component unmount
+          return () => {
+            room.disconnect();
+          };
         }
       } catch (error) {
         alert("Error accessing webcam and microphone");
@@ -30,8 +80,7 @@ const VideoScreener = () => {
       }
     } else {
       const stream = videoRef.current?.srcObject as MediaStream;
-      const tracks = stream.getTracks();
-      tracks.forEach((track) => track.stop());
+      stream?.getTracks().forEach((track) => track.stop());
       if (videoRef.current) {
         videoRef.current.srcObject = null;
       }
@@ -74,8 +123,7 @@ const VideoScreener = () => {
       }
     };
   }, []);
-  // console.log("recorderChunks", recordedChunks);
-  // console.log(isRecording, "isrecording", "isPlaying", isPlaying);
+
   return (
     <div>
       <h1>Video Screener</h1>
