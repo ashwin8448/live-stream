@@ -9,7 +9,11 @@ import {
 } from "twilio-video";
 import "./styles.css";
 
-const VideoScreener = () => {
+const VideoScreener = ({
+  credentials,
+}: {
+  credentials: { roomName: string; token: string };
+}) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isRecording, setIsRecording] = useState<boolean>(false);
@@ -21,8 +25,12 @@ const VideoScreener = () => {
     if (!isPlaying) {
       try {
         const localTracks = await createLocalTracks({
-          video: true,
-          audio: true,
+          video: {
+            height: 1080,
+            width: 1920,
+            frameRate: 30,
+          },
+          audio: { noiseSuppression: true, echoCancellation: true }, // Enable these features
         });
         const videoTrack = localTracks.find(
           (track: LocalTrack) => track.kind === "video"
@@ -32,8 +40,8 @@ const VideoScreener = () => {
           setIsPlaying(true);
 
           // Connect to a Twilio room (replace "your-twilio-token" with your actual Twilio token)
-          const room: Room = await connect("", {
-            name: "cool room",
+          const room: Room = await connect(credentials.token, {
+            name: credentials.roomName,
             tracks: localTracks,
           });
 
