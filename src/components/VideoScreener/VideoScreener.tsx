@@ -3,7 +3,9 @@ import {
   connect,
   createLocalTracks,
   Room,
-  LocalTrack,
+  // LocalTrack,
+  LocalVideoTrack,
+  LocalAudioTrack,
   RemoteTrackPublication,
   RemoteVideoTrack,
 } from "twilio-video";
@@ -17,70 +19,25 @@ const VideoScreener = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isRecording, setIsRecording] = useState<boolean>(false);
-  const recordedChunks = useRef<Blob[]>([]);
   const [recordedVideoURL, setRecordedVideoURL] = useState<string | null>(null);
+  const roomRef = useRef<Room | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunks = useRef<Blob[]>([]);
 
   const handleStartStop = async () => {
     if (!isPlaying) {
       try {
-        const localTracks = await createLocalTracks({
-          video: {
-            height: 1080,
-            width: 1920,
-            frameRate: 30,
-          },
-          audio: { noiseSuppression: true, echoCancellation: true }, // Enable these features
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
         });
-        const videoTrack = localTracks.find(
-          (track: LocalTrack) => track.kind === "video"
-        );
-        if (videoTrack && videoRef.current) {
-          videoTrack.attach(videoRef.current);
-          setIsPlaying(true);
-
-          // Connect to a Twilio room (replace "your-twilio-token" with your actual Twilio token)
-          const room: Room = await connect(credentials.token, {
-            name: credentials.roomName,
-            tracks: localTracks,
-          });
-
-          // Handle participant connected
-          room.on("participantConnected", (participant) => {
-            participant.tracks.forEach(
-              (publication: RemoteTrackPublication) => {
-                if (publication.track && publication.track.kind === "video") {
-                  (publication.track as RemoteVideoTrack).attach(
-                    videoRef.current!
-                  );
-                }
-              }
-            );
-
-            participant.on("trackSubscribed", (track) => {
-              if (track.kind === "video") {
-                (track as RemoteVideoTrack).attach(videoRef.current!);
-              }
-            });
-          });
-
-          // Handle participant disconnected
-          room.on("participantDisconnected", (participant) => {
-            participant.tracks.forEach(
-              (publication: RemoteTrackPublication) => {
-                if (publication.track && publication.track.kind === "video") {
-                  (publication.track as RemoteVideoTrack)
-                    .detach()
-                    .forEach((element) => element.remove());
-                }
-              }
-            );
-          });
-
-          // Disconnect from the room on component unmount
-          return () => {
-            room.disconnect();
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.onloadedmetadata = () => {
+            videoRef.current!.play();
           };
+          videoRef.current.muted = true;
+          setIsPlaying(true);
         }
       } catch (error) {
         alert("Error accessing webcam and microphone");
@@ -88,7 +45,8 @@ const VideoScreener = ({
       }
     } else {
       const stream = videoRef.current?.srcObject as MediaStream;
-      stream?.getTracks().forEach((track) => track.stop());
+      const tracks = stream.getTracks();
+      tracks.forEach((track) => track.stop());
       if (videoRef.current) {
         videoRef.current.srcObject = null;
       }
@@ -98,25 +56,80 @@ const VideoScreener = ({
     }
   };
 
-  const handleRecordStartStop = () => {
+  const handleRecordStartStop = async () => {
+    console.log("record click");
     if (!isRecording) {
-      setRecordedVideoURL(null);
-      recordedChunks.current = [];
-      const stream = videoRef.current?.srcObject as MediaStream;
-      mediaRecorderRef.current = new MediaRecorder(stream);
-      mediaRecorderRef.current.start();
-      mediaRecorderRef.current.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          recordedChunks.current.push(event.data);
-        }
-      };
-      mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(recordedChunks.current, { type: "video/webm" });
-        setRecordedVideoURL(URL.createObjectURL(blob));
-      };
-      setIsRecording(true);
+      try {
+        const localTracks = await createLocalTracks({
+          video: true,
+          audio: true,
+        });
+
+        const room: Room = await connect(credentials.token, {
+          name: credentials.roomName,
+          tracks: localTracks,
+        });
+
+        roomRef.current = room;
+
+        const stream = new MediaStream();
+        localTracks.forEach((track) => {
+          if (track.kind === "video" || track.kind === "audio") {
+            stream.addTrack(
+              (track as LocalVideoTrack | LocalAudioTrack).mediaStreamTrack
+            );
+          }
+        });
+
+        mediaRecorderRef.current = new MediaRecorder(stream);
+        mediaRecorderRef.current.start();
+        mediaRecorderRef.current.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            recordedChunks.current.push(event.data);
+          }
+        };
+        mediaRecorderRef.current.onstop = () => {
+          const blob = new Blob(recordedChunks.current, { type: "video/webm" });
+          setRecordedVideoURL(URL.createObjectURL(blob));
+        };
+
+        setIsRecording(true);
+
+        room.on("participantConnected", (participant) => {
+          participant.tracks.forEach((publication: RemoteTrackPublication) => {
+            if (publication.track && publication.track.kind === "video") {
+              (publication.track as RemoteVideoTrack).attach(videoRef.current!);
+            }
+          });
+
+          participant.on("trackSubscribed", (track) => {
+            if (track.kind === "video") {
+              (track as RemoteVideoTrack).attach(videoRef.current!);
+            }
+          });
+        });
+
+        room.on("participantDisconnected", (participant) => {
+          participant.tracks.forEach((publication: RemoteTrackPublication) => {
+            if (publication.track && publication.track.kind === "video") {
+              (publication.track as RemoteVideoTrack)
+                .detach()
+                .forEach((element) => element.remove());
+            }
+          });
+        });
+      } catch (error) {
+        alert("Error connecting to Twilio room");
+        console.error("Error connecting to Twilio room: ", error);
+      }
     } else {
-      mediaRecorderRef.current?.stop();
+      if (mediaRecorderRef.current) {
+        mediaRecorderRef.current.stop();
+      }
+      if (roomRef.current) {
+        roomRef.current.disconnect();
+        roomRef.current = null;
+      }
       setIsRecording(false);
     }
   };
@@ -128,6 +141,10 @@ const VideoScreener = ({
         mediaRecorderRef.current.state !== "inactive"
       ) {
         mediaRecorderRef.current.stop();
+      }
+      if (roomRef.current) {
+        roomRef.current.disconnect();
+        roomRef.current = null;
       }
     };
   }, []);
@@ -148,7 +165,7 @@ const VideoScreener = ({
       </div>
       {recordedVideoURL && (
         <div>
-          <h2>Recorded Video {recordedVideoURL}</h2>
+          <h2>Recorded Video</h2>
           <video src={recordedVideoURL} controls className="videoElement" />
         </div>
       )}
