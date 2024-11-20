@@ -8,9 +8,11 @@ function App() {
   const roomName: string | null = searchParams.get("roomName");
   const token: string | null = searchParams.get("token");
   useEffect(() => {
-    fetch("https://twilio.kytt.site/create_room", {
-      method: "POST",
-    });
+    (async () => {
+      await fetch("https://twilio.kytt.site/create_room", {
+        method: "POST",
+      });
+    })();
   });
   return (
     <>
