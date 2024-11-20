@@ -13,7 +13,7 @@ function App() {
         method: "POST",
       });
     })();
-  });
+  }, []);
   return (
     <>
       {roomName && token ? (
