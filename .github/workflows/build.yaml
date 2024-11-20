@@ -3,7 +3,7 @@ name: Deploy to AWS ECR using OIDC
 on:
   push:
     branches:
-      - twilio
+      - twilio-getUserMedia
 
 jobs:
   build-and-push-ecr:

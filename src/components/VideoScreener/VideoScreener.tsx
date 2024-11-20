@@ -1,12 +1,5 @@
-import { useRef, useState, useEffect } from "react";
-import {
-  connect,
-  createLocalTracks,
-  Room,
-  LocalTrack,
-  RemoteTrackPublication,
-  RemoteVideoTrack,
-} from "twilio-video";
+import { useRef, useState } from "react";
+import { connect, Room } from "twilio-video";
 import "./styles.css";
 
 const VideoScreener = ({
@@ -15,122 +8,62 @@ const VideoScreener = ({
   credentials: { roomName: string; token: string };
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const roomRef = useRef<Room | null>(null); // Persist room reference
+  const localStreamRef = useRef<MediaStream | null>(null);
   const [isRecording, setIsRecording] = useState<boolean>(false);
-  const recordedChunks = useRef<Blob[]>([]);
-  const [recordedVideoURL, setRecordedVideoURL] = useState<string | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
   const handleStartStop = async () => {
-    if (!isPlaying) {
+    if (!isRecording) {
       try {
-        const localTracks = await createLocalTracks({
+        localStreamRef.current = await navigator.mediaDevices.getUserMedia({
           video: {
             height: 1080,
             width: 1920,
             frameRate: 30,
           },
-          audio: { noiseSuppression: true, echoCancellation: true }, // Enable these features
+          audio: { noiseSuppression: true, echoCancellation: true },
         });
-        const videoTrack = localTracks.find(
-          (track: LocalTrack) => track.kind === "video"
-        );
-        if (videoTrack && videoRef.current) {
-          videoTrack.attach(videoRef.current);
-          setIsPlaying(true);
+        const localVideoStream = localStreamRef.current.getVideoTracks();
 
-          // Connect to a Twilio room (replace "your-twilio-token" with your actual Twilio token)
-          const room: Room = await connect(credentials.token, {
+        if (videoRef.current) {
+          videoRef.current.srcObject = new MediaStream(localVideoStream);
+          videoRef.current.play();
+          setIsRecording(true);
+
+          const room = await connect(credentials.token, {
             name: credentials.roomName,
-            tracks: localTracks,
+            tracks: [
+              ...localStreamRef.current.getVideoTracks(),
+              ...localStreamRef.current.getAudioTracks(),
+            ],
           });
-
-          // Handle participant connected
-          room.on("participantConnected", (participant) => {
-            participant.tracks.forEach(
-              (publication: RemoteTrackPublication) => {
-                if (publication.track && publication.track.kind === "video") {
-                  (publication.track as RemoteVideoTrack).attach(
-                    videoRef.current!
-                  );
-                }
-              }
-            );
-
-            participant.on("trackSubscribed", (track) => {
-              if (track.kind === "video") {
-                (track as RemoteVideoTrack).attach(videoRef.current!);
-              }
-            });
-          });
-
-          // Handle participant disconnected
-          room.on("participantDisconnected", (participant) => {
-            participant.tracks.forEach(
-              (publication: RemoteTrackPublication) => {
-                if (publication.track && publication.track.kind === "video") {
-                  (publication.track as RemoteVideoTrack)
-                    .detach()
-                    .forEach((element) => element.remove());
-                }
-              }
-            );
-          });
-
-          // Disconnect from the room on component unmount
-          return () => {
-            room.disconnect();
-          };
+          roomRef.current = room; // Store room reference in useRef
         }
       } catch (error) {
         alert("Error accessing webcam and microphone");
         console.error("Error accessing webcam and microphone: ", error);
       }
     } else {
-      const stream = videoRef.current?.srcObject as MediaStream;
-      stream?.getTracks().forEach((track) => track.stop());
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((track) => {
+          track.stop(); // Stop all tracks (audio + video)
+        });
+      }
+
+      // Clear the video element's source
       if (videoRef.current) {
         videoRef.current.srcObject = null;
       }
-      setIsPlaying(false);
-      setIsRecording(false);
-      setRecordedVideoURL(null);
-    }
-  };
 
-  const handleRecordStartStop = () => {
-    if (!isRecording) {
-      setRecordedVideoURL(null);
-      recordedChunks.current = [];
-      const stream = videoRef.current?.srcObject as MediaStream;
-      mediaRecorderRef.current = new MediaRecorder(stream);
-      mediaRecorderRef.current.start();
-      mediaRecorderRef.current.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          recordedChunks.current.push(event.data);
-        }
-      };
-      mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(recordedChunks.current, { type: "video/webm" });
-        setRecordedVideoURL(URL.createObjectURL(blob));
-      };
-      setIsRecording(true);
-    } else {
-      mediaRecorderRef.current?.stop();
       setIsRecording(false);
-    }
-  };
 
-  useEffect(() => {
-    return () => {
-      if (
-        mediaRecorderRef.current &&
-        mediaRecorderRef.current.state !== "inactive"
-      ) {
-        mediaRecorderRef.current.stop();
+      // Disconnect from the room if it exists
+      if (roomRef.current) {
+        roomRef.current.disconnect();
+        roomRef.current = null; // Reset room reference
       }
-    };
-  }, []);
+    }
+  };
 
   return (
     <div>
@@ -138,20 +71,9 @@ const VideoScreener = ({
       <video ref={videoRef} disablePictureInPicture className="videoElement" />
       <div>
         <button onClick={handleStartStop}>
-          {isPlaying ? "Stop Video" : "Start Video"}
+          {isRecording ? "Stop recording" : "Start recording"}
         </button>
-        {isPlaying && (
-          <button onClick={handleRecordStartStop}>
-            {isRecording ? "Stop Recording" : "Start Recording"}
-          </button>
-        )}
       </div>
-      {recordedVideoURL && (
-        <div>
-          <h2>Recorded Video {recordedVideoURL}</h2>
-          <video src={recordedVideoURL} controls className="videoElement" />
-        </div>
-      )}
     </div>
   );
 };

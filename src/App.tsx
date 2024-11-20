@@ -1,47 +1,24 @@
-import { useState } from "react";
+import { useEffect } from "react";
 import "./App.css";
 import VideoScreener from "./components/VideoScreener/VideoScreener";
+import { useSearchParams } from "react-router-dom";
 
 function App() {
-  const [formValues, setFormValues] = useState({ roomName: "", token: "" });
-  const [showVideo, setShowVideo] = useState(false);
-
+  const [searchParams] = useSearchParams();
+  const roomName: string | null = searchParams.get("roomName");
+  const token: string | null = searchParams.get("token");
+  useEffect(() => {
+    fetch("https://twilio.kytt.site/create_room", {
+      method: "POST",
+    });
+  });
   return (
     <>
-      {!showVideo && (
-        <form>
-          <div className="form-field">
-            <label htmlFor="room-name">Room name: </label>
-            <input
-              type="text"
-              id="room-name"
-              value={formValues.roomName}
-              onChange={(e) =>
-                setFormValues({ ...formValues, roomName: e.target.value })
-              }
-            />
-          </div>
-          <div className="form-field">
-            <label htmlFor="token">Token: </label>
-            <input
-              type="text"
-              id="token"
-              value={formValues.token}
-              onChange={(e) =>
-                setFormValues({ ...formValues, token: e.target.value })
-              }
-            />
-          </div>
-          <button
-            onClick={() => {
-              if (formValues.roomName && formValues.token) setShowVideo(true);
-            }}
-          >
-            Show Video
-          </button>
-        </form>
+      {roomName && token ? (
+        <VideoScreener credentials={{ roomName, token }} />
+      ) : (
+        <h1>Invalid URL</h1>
       )}
-      {showVideo && <VideoScreener credentials={formValues} />}
     </>
   );
 }
