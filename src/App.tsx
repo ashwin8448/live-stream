@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+// import { useEffect } from "react";
 import "./App.css";
 import VideoScreener from "./components/VideoScreener/VideoScreener";
 import { useSearchParams } from "react-router-dom";
