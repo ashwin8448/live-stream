@@ -1,28 +1,21 @@
-import { useEffect } from "react";
-import "./App.css";
-import VideoScreener from "./components/VideoScreener/VideoScreener";
-import { useSearchParams } from "react-router-dom";
+import { RouterProvider, createBrowserRouter } from "react-router-dom";
+import Home from "./Home"; // Example component
+import VideoStream from "./VideoStream"; // Example 404 component
 
-function App() {
-  const [searchParams] = useSearchParams();
-  const roomName: string | null = searchParams.get("roomName");
-  const token: string | null = searchParams.get("token");
-  useEffect(() => {
-    (async () => {
-      await fetch("https://twilio.kytt.site/create_room", {
-        method: "POST",
-      });
-    })();
-  }, []);
-  return (
-    <>
-      {roomName && token ? (
-        <VideoScreener credentials={{ roomName, token }} />
-      ) : (
-        <h1>Invalid URL</h1>
-      )}
-    </>
-  );
-}
+// Create the router with routes
+const router = createBrowserRouter([
+  {
+    path: "/",
+    element: <Home />, // The component for the home page
+  },
+  {
+    path: "/video",
+    element: <VideoStream />, // Example of a route with credentials passed as props
+  },
+]);
+
+const App = () => {
+  return <RouterProvider router={router} />;
+};
 
 export default App;
