@@ -1,21 +1,46 @@
-import { RouterProvider, createBrowserRouter } from "react-router-dom";
-import Home from "./Home"; // Example component
-import VideoStream from "./VideoStream"; // Example 404 component
+import { useEffect } from "react";
+import "./App.css";
+import VideoScreener from "./components/VideoScreener/VideoScreener";
+import { useSearchParams } from "react-router-dom";
 
-// Create the router with routes
-const router = createBrowserRouter([
-  {
-    path: "/",
-    element: <Home />, // The component for the home page
-  },
-  {
-    path: "/video",
-    element: <VideoStream />, // Example of a route with credentials passed as props
-  },
-]);
 
-const App = () => {
-  return <RouterProvider router={router} />;
-};
+function App() {
+  const [searchParams] = useSearchParams();
+  const roomName: string | null = searchParams.get("room_name");
+  const token: string | null = searchParams.get("token");
+
+  const handleSubmit = () => {
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = "https://twilio.kytt.site/create_room"; // The URL to handle the request
+  
+    document.body.appendChild(form); // Append form to DOM
+    form.submit(); // Submit the form
+  };
+  // useEffect(() => {
+  //   (async () => {
+  //     let res =await fetch("https://twilio.kytt.site/create_room", {
+  //       method: "POST",
+  //     });
+
+  //     console.log(res.redirected)
+  //     console.log(res.url)
+      
+  //   })();
+
+  // });
+  return (
+    <>
+      {roomName && token ? (
+        <VideoScreener credentials={{ roomName, token }} />
+      ) : (
+        <>
+        <h1>Invalid URL</h1>
+        <button onClick={handleSubmit}>Create Room</button>
+        </>
+      )}
+    </>
+  );
+}
 
 export default App;
