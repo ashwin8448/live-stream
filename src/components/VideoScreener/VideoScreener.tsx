@@ -10,10 +10,12 @@ const VideoScreener = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const roomRef = useRef<Room | null>(null); // Persist room reference
   const localStreamRef = useRef<MediaStream | null>(null);
-  const [isRecording, setIsRecording] = useState<boolean>(false);
+  const [sessionStatus, setSessionStatus] = useState<
+    "not yet started" | "ongoing" | "ended"
+  >("not yet started");
 
   const handleStartStop = async () => {
-    if (!isRecording) {
+    if (sessionStatus === "not yet started") {
       try {
         localStreamRef.current = await navigator.mediaDevices.getUserMedia({
           video: {
@@ -28,7 +30,7 @@ const VideoScreener = ({
         if (videoRef.current) {
           videoRef.current.srcObject = new MediaStream(localVideoStream);
           videoRef.current.play();
-          setIsRecording(true);
+          setSessionStatus("ongoing");
 
           const room = await connect(credentials.token, {
             name: credentials.roomName,
@@ -46,6 +48,7 @@ const VideoScreener = ({
     } else {
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach((track) => {
+          console.log(track);
           track.stop(); // Stop all tracks (audio + video)
         });
       }
@@ -55,25 +58,42 @@ const VideoScreener = ({
         videoRef.current.srcObject = null;
       }
 
-      setIsRecording(false);
+      setSessionStatus("ended");
 
       // Disconnect from the room if it exists
       if (roomRef.current) {
         roomRef.current.disconnect();
         roomRef.current = null; // Reset room reference
+        (() => {
+          fetch("https://twilio.kytt.site/close_room", {
+            method: "POST",
+            body: JSON.stringify({ room_name: credentials.roomName }),
+          });
+        })();
       }
     }
   };
 
   return (
     <div>
-      <h1>Video Screener</h1>
-      <video ref={videoRef} disablePictureInPicture className="videoElement" />
-      <div>
-        <button onClick={handleStartStop}>
-          {isRecording ? "Stop recording" : "Start recording"}
-        </button>
-      </div>
+      {sessionStatus != "ended" ? (
+        <>
+          <h1>Video Screener</h1>
+          <video
+            ref={videoRef}
+            disablePictureInPicture
+            className="videoElement"
+          />
+          <div>
+            <button onClick={handleStartStop}>
+              {sessionStatus === "not yet started" && "Start recording"}
+              {sessionStatus === "ongoing" && "Stop recording"}
+            </button>
+          </div>
+        </>
+      ) : (
+        <h1>Session is over</h1>
+      )}
     </div>
   );
 };
