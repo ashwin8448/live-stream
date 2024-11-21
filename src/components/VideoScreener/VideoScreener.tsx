@@ -46,7 +46,7 @@ const VideoScreener = ({
         }
       } catch (error) {
         console.log(error);
-        setError(error.message);
+        setError((error as { message: string }).message);
       }
     } else {
       if (localStreamRef.current) {
