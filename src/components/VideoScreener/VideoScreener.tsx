@@ -68,6 +68,7 @@ const VideoScreener = ({
           fetch("https://twilio.kytt.site/close_room", {
             method: "POST",
             body: JSON.stringify({ room_name: credentials.roomName }),
+            credentials: 'include'
           });
         })();
       }
