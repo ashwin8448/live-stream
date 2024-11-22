@@ -12,6 +12,7 @@ const VideoScreener = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const roomRef = useRef<Room | null>(null); // Persist room reference
   const localStreamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
   const [sessionStatus, setSessionStatus] = useState<
     "not yet started" | "ongoing" | "ended" | "connecting"
   >("not yet started");
@@ -36,6 +37,15 @@ const VideoScreener = ({
           },
         });
 
+        // Create audio context and gain node
+        audioContextRef.current = new AudioContext();
+        const source = audioContextRef.current.createMediaStreamSource(stream);
+        const gainNode = audioContextRef.current.createGain();
+
+        // Increase gain to amplify audio
+        gainNode.gain.value = 2; // Amplify audio by a factor of 2
+        source.connect(gainNode).connect(audioContextRef.current.destination);
+
         localStreamRef.current = stream;
 
         if (videoRef.current) {
@@ -49,6 +59,13 @@ const VideoScreener = ({
         setError((error as { message: string }).message);
       }
     })();
+
+    return () => {
+      // Clean up audio context on unmount
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
+    };
   }, []);
 
   const handleStart = async () => {
