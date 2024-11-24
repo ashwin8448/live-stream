@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { connect, Room } from "twilio-video";
 import "./styles.css";
 import { useNavigate } from "react-router-dom";
+import { API_BASE } from "../../const";
 
 const VideoScreener = ({
   credentials,
@@ -80,7 +81,7 @@ const VideoScreener = ({
       }
 
       // Notify the server about the room closure
-      await fetch("https://twilio.kytt.site/close_room", {
+      await fetch(API_BASE+"close_room", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ room_name: credentials.roomName }),
