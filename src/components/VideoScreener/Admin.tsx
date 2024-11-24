@@ -9,8 +9,7 @@ function Admin() {
   const [selectedInterview, setSelectedInterview] = useState("");
   const [interviews, setInterviews] = useState([]);
   const videoRef = useRef(null);
-
-  const [data, setData] = useState([]);
+  const [data, setData] = useState([{ url: "" }]);
 
   useEffect(() => {
     const postData = async () => {
@@ -60,7 +59,7 @@ function Admin() {
     }
   }, [videourl]);
 
-  const handleSelectChange = (event) => {
+  const handleSelectChange = (event:any) => {
     setSelectedInterview(event.target.value);
 
     const fetchVideourl = async () => {
@@ -92,7 +91,7 @@ function Admin() {
   };
 
 
-  const handleVideoClick = (event) => {
+  const handleVideoClick = (event:any) => {
     setvideoUrl(event.target.value);
   };
 

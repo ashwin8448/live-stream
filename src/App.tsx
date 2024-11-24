@@ -1,7 +1,7 @@
 import "./App.css";
 import Admin from "./components/VideoScreener/Admin";
 import VideoScreener from "./components/VideoScreener/VideoScreener";
-import { Route, Router, Routes, useSearchParams } from "react-router-dom";
+import { Route, Routes, useSearchParams } from "react-router-dom";
 import { API_BASE } from "./const";
 
 function App() {
