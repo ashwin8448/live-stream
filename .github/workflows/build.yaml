@@ -58,3 +58,4 @@ jobs:
       - name: Deploy to Kubernetes
         run: |
           kubectl replace -f k8s/
+          kubectl rollout restart deployment nginx -n default

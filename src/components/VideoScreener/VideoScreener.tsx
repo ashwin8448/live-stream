@@ -23,8 +23,8 @@ const VideoScreener = ({
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
-            height: { ideal: 480 },
-            width: { ideal: 854 },
+            height: { exact: 480 },
+            width: { exact: 854 },
             frameRate: 30,
           },
           audio: {
@@ -81,7 +81,7 @@ const VideoScreener = ({
       }
 
       // Notify the server about the room closure
-      await fetch(API_BASE+"close_room", {
+      await fetch(API_BASE + "close_room", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ room_name: credentials.roomName }),
