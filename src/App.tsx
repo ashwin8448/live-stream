@@ -9,7 +9,6 @@ function App() {
   const roomName: string | null = searchParams.get("room_name");
   const token: string | null = searchParams.get("token");
 
-
   return (
     <>
       <Routes>
@@ -20,14 +19,12 @@ function App() {
             roomName && token ? (
               <VideoScreener credentials={{ roomName, token }} />
             ) : (
-              <form method="POST" action={API_BASE+"create_room"}>
+              <form method="POST" action={API_BASE + "create_room"}>
                 <button type="submit">Create Room</button>
               </form>
             )
           }
-        >
-
-        </Route>
+        ></Route>
       </Routes>
     </>
   );

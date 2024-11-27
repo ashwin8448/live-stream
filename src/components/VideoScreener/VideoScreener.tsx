@@ -23,17 +23,13 @@ const VideoScreener = ({
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
-            height: { exact: 480 },
-            width: { exact: 854 },
+            height: { ideal: 480 },
+            width: { ideal: 854 },
             frameRate: 30,
           },
           audio: {
             noiseSuppression: true,
             echoCancellation: true,
-            channelCount: 2,
-            sampleRate: 48000,
-            sampleSize: 16,
-            autoGainControl: true,
           },
         });
 
